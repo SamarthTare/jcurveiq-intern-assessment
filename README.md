@@ -31,6 +31,113 @@ All primary operations achieve the desired $O(1)$ average time complexity.
    put to a full cache: The code correctly identifies len(self.data) >= self.capacity, calls evict() before adding the new item, deletes the old item, and then inserts the new one.
    Cache with capacity 1: The logic holds. Every new put will cause an eviction of the previous item.
    Invalid capacity: The constructor checks for capacity <= 0 and raises a ValueError to prevent invalid states.
+
+Explanation of Task 2: Design Pattern Application
+
+The most appropriate design pattern for this scenario is the Observer Pattern (also known as Publish-Subscribe).
+
+1. Overview of the Pattern
+The Observer Pattern defines a one-to-many dependency between objects. It consists of two main parts:
+
+Subject (or Publisher): This is the object that holds the state or performs actions that other objects are interested in. In your case, this is the DocumentUploader. The Subject maintains a list of its "Observers."
+
+Observer (or Subscriber): This is an interface (or abstract class) that defines a notification method (e.g., update()).
+
+Concrete Observers: These are the actual objects that want to be notified (e.g., AnalyticsModule, AlertsModule). They implement the Observer interface.
+
+When the Subject's state changes or an event occurs (a document is uploaded), it automatically notifies all its registered Observers by calling their update() method.
+
+2. Application in this Context
+Here is how the pattern would be applied to your notification system:
+
+Key Classes and Interfaces:
+
+IDocumentObserver (Interface):
+
+This interface defines the contract for all subscribers.
+
+Method: on_document_uploaded(document_details)
+
+DocumentUploader (Subject):
+
+This class contains the core upload logic.
+
+Fields: private list_of_observers = []
+
+Method: register(observer: IDocumentObserver)
+
+Adds an observer to list_of_observers.
+
+Method: unregister(observer: IDocumentObserver)
+
+Removes an observer from list_of_observers.
+
+Method: notify_observers(document_details)
+
+Loops through list_of_observers and calls observer.on_document_uploaded(document_details) on each one.
+
+Method: handle_upload(file)
+
+Contains the logic to save the file.
+
+After saving, it creates a document_details object (e.g., with file ID, path, user) and calls self.notify_observers(document_details).
+
+Concrete Observers (Subscribers):
+
+class AnalyticsModule implements IDocumentObserver:
+
+on_document_uploaded(document_details): Starts its data processing job.
+
+class AlertsModule implements IDocumentObserver:
+
+on_document_uploaded(document_details): Checks if users need to be alerted and sends emails/messages.
+
+class AuditLoggingModule implements IDocumentObserver:
+
+on_document_uploaded(document_details): Writes a log entry to the audit database.
+
+Interaction (Pseudo-code):
+
+// --- Setup ---
+// Create the main uploader (Subject)
+uploader = new DocumentUploader()
+
+// Create all modules (Observers)
+analytics = new AnalyticsModule()
+alerts = new AlertsModule()
+audit = new AuditLoggingModule()
+
+// --- Registration (Subscribing) ---
+// The modules subscribe to the uploader
+uploader.register(analytics)
+uploader.register(alerts)
+uploader.register(audit)
+
+// --- Event Happens ---
+// A user uploads a file, triggering the handle_upload method
+uploader.handle_upload(some_file_object)
+
+// --- Inside handle_upload() ---
+// 1. File is saved
+// 2. uploader.notify_observers(document_details) is called
+// 3. This triggers:
+//    - analytics.on_document_uploaded(...)
+//    - alerts.on_document_uploaded(...)
+//    - audit.on_document_uploaded(...)
+3. How This Achieves Loose Coupling
+This design is the definition of loose coupling. The DocumentUploader (Subject) is completely decoupled from the concrete modules (Observers).
+
+No Hard-Coded References: The DocumentUploader does not know that AnalyticsModule, AlertsModule, or AuditLoggingModule even exist. It only knows that it has a list of objects that implement the IDocumentObserver interface.
+
+Extensibility (Open/Closed Principle): The system is open for extension but closed for modification. If you need to add a new ReportGenerationModule tomorrow, you simply:
+
+Create the new ReportGenerationModule class (implementing IDocumentObserver).
+
+Register it with the uploader instance: uploader.register(new ReportGenerationModule()).
+
+Crucially, you do not need to modify a single line of code in the DocumentUploader class.
+
+Maintainability: You can add, remove, or temporarily disable modules (by unregistering them) at runtime without affecting the core upload logic or any of the other modules.   
    
    
    
